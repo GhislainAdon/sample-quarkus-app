@@ -1,0 +1,109 @@
+#variables:
+#- &SWARM_FLEET_OBINEO_VERSION 1.0.0.${DRONE_BUILD_NUMBER}
+
+definitions:
+- &DOCKER_SETTINGS 
+  username:
+    from_secret: DOCKER_USERNAME
+  password:
+    from_secret: DOCKER_PASSWORD
+
+kind: pipeline
+type: docker
+name: swarm-build-modules
+
+steps:
+###############################################################################
+#                                   CACHE
+# ADD [CLEAR CACHE] or [NO CACHE] in the commit message
+###############################################################################
+- name: restore-cache
+  image: drillster/drone-volume-cache
+  volumes:
+  - name: cache
+    path: /cache
+  settings:
+    restore: true
+    mount:
+      - /drone/.gradle/caches
+      - /drone/.gradle/wrapper
+
+###############################################################################
+#                                     SDK
+###############################################################################
+- name: initSdk
+  group: build
+  image: maven:3-jdk-10
+  commands:
+  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+  - mvn test -B
+
+###############################################################################
+#                                BUILD MODULES
+###############################################################################
+
+- name: publish on docker hub
+  image: plugins/docker
+  environment:
+    #SWARM_MODULE_VERSION: *SWARM_FLEET_OBINEO_VERSION
+    #SWARM_MODULE_NAME: swarm-fleet-obineo
+  settings:
+    context: .
+    repo: adon1996/hive
+    dockerfile: ./source/main/docker/Dockerfile.native
+    <<: *DOCKER_SETTINGS
+    #build_args_from_env:
+    #- SWARM_MODULE_VERSION
+    #- SWARM_MODULE_NAME
+    #tag:
+    #- latest  
+    #- *SWARM_FLEET_OBINEO_VERSION
+    auto_tag: true
+  when:
+    branch:
+    - master
+
+###############################################################################
+#                                   CACHE
+###############################################################################
+- name: rebuild-cache
+  image: drillster/drone-volume-cache
+  volumes:
+  - name: cache
+    path: /cache
+  settings:
+    rebuild: true
+    mount:
+      - /drone/.gradle/caches
+      - /drone/.gradle/wrapper
+    
+###############################################################################
+#                                 NOTIFICATION
+###############################################################################
+- name: notify gmail
+  image: drillster/drone-email
+  settings:
+    starttls: true
+    from: esaticsrit1b@gmail.com
+    recipients:
+      - esaticsrit1b@gmail.com
+    port: 
+      from_secret: EMAIL_PORT
+    host: 
+      from_secret: EMAIL_HOST
+    username: 
+      from_secret: EMAIL_USERNAME
+    password: 
+      from_secret: EMAIL_PASSWORD
+  when:
+    status:
+      - failure
+      - success
+
+###############################################################################
+#                                   VOLUME
+###############################################################################        
+#volumes:
+#- name: cache
+#  host: 
+#    path: /tmp/cache
