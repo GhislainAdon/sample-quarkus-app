@@ -31,12 +31,7 @@ steps:
 ###############################################################################
 #                                     SDK
 ###############################################################################
-- name: initSdk
-  group: build
-  image: maven:3-jdk-10
-  commands:
-  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
-  - mvn test -B
+
 
 ###############################################################################
 #                                BUILD MODULES
@@ -50,7 +45,7 @@ steps:
   settings:
     context: .
     repo: adon1996/hive
-    dockerfile: ./source/main/docker/Dockerfile.native
+    dockerfile: Dockerfile.native
     <<: *DOCKER_SETTINGS
     #build_args_from_env:
     #- SWARM_MODULE_VERSION
